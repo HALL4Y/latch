@@ -1,8 +1,8 @@
 export const KEYCHAIN_USER_MESSAGE = `pass-cli doit s’exécuter sous votre utilisateur graphique macOS pour que le trousseau puisse répondre (code -25308 « User interaction is not allowed »).
 
-Cette erreur survient souvent après un pass-cli lancé avec sudo : sudo pose des droits root sur la base locale, le trousseau refuse l’accès, et pass-cli normal ne peut plus ouvrir la base.
+Si vous avez lancé pass-cli avec sudo, le trousseau refuse l’accès et la base locale peut être possédée par root. Latch n’utilise jamais sudo et ne lance pas pass-cli en root.
 
-Latch n’utilise jamais sudo et ne proposera pas d’élévation pour « réparer » cela. Reprenez pass-cli uniquement sous votre compte utilisateur (sans sudo), depuis une session graphique où vous êtes connecté.`
+Corrigez côté machine : exécutez pass-cli sans sudo, depuis une session où vous êtes connecté, puis relancez la commande depuis Latch ou le script exporté.`
 
 export function isKeyringOrSudoError(text: string): boolean {
   return (
