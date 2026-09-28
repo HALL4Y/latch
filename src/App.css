@@ -56,16 +56,41 @@ h2 {
   margin-bottom: 1rem;
 }
 
-.main-grid {
+.top-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.composer-band {
+  margin-top: 0;
+}
+
+.composer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 @media (max-width: 900px) {
-  .main-grid {
+  .top-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.panel-compact {
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0;
+}
+
+.panel-compact h2 {
+  margin-bottom: 0.5rem;
+}
+
+.small {
+  font-size: 0.82rem;
 }
 
 .muted {
@@ -141,15 +166,113 @@ h2 {
 .menu-item {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #2a2f3a;
+}
+
+.menu-item.dense {
+  padding: 0.22rem 0;
+}
+
+.menu-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
 }
 
 .menu-actions {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
   flex-shrink: 0;
+}
+
+.btn-open,
+.btn-add {
+  background: transparent;
+  border: none;
+  padding: 0.1rem 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.btn-open {
+  color: #5b9aff;
+}
+
+.btn-open:hover {
+  color: #8bb8ff;
+}
+
+.btn-add {
+  color: #3dd68c;
+}
+
+.btn-add:hover {
+  color: #6ae8ad;
+}
+
+.btn-open.inline {
+  display: inline;
+  padding: 0;
+  font-size: inherit;
+}
+
+.crumb {
+  background: none;
+  border: none;
+  color: #9aa3b2;
+  padding: 0;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.crumb:disabled {
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
+}
+
+.breadcrumb {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+}
+
+.path-line {
+  margin: 0 0 0.35rem;
+}
+
+.flag-hints {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: #9aa3b2;
+}
+
+.step-list.compact li {
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.family-row.compact {
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.5rem;
+}
+
+.script-block.selectable {
+  user-select: text;
+  cursor: text;
+  max-height: 320px;
 }
 
 .family-row {
@@ -312,6 +435,15 @@ button {
   padding: 0.45rem 0.85rem;
   cursor: pointer;
   font-size: 0.88rem;
+}
+
+.menu-actions .btn-open,
+.menu-actions .btn-add,
+.panel-compact > .btn-add {
+  background: transparent;
+  border-radius: 0;
+  padding: 0.1rem 0.25rem;
+  font-weight: 600;
 }
 
 button:disabled {

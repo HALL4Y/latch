@@ -1,6 +1,6 @@
 import type { FamilyKey, HelpMappingFile, HelpNode } from './helpMapping'
 import { LIST_FAMILIES, getNode, pathKey } from './helpMapping'
-import { commandTextUsesSudo } from './sudoPolicy'
+import { userInputUsesSudo } from './sudoPolicy'
 
 export type FamilyMode = 'manual' | 'auto' | 'off'
 
@@ -24,12 +24,17 @@ export type ComposeSettings = {
 
 function shellQuote(s: string): string {
   if (/^[a-zA-Z0-9._/@+-]+$/.test(s)) return s
-  return `'${s.replace(/'/g, `'\\''`)}'`
+  return `'${s.replace(/'/g, `'\''`)}'`
 }
 
 function quoteValue(v: string): string {
   if (v.startsWith('$')) return `"${v}"`
   return shellQuote(v)
+}
+
+function safeLiteral(v: string): string | null {
+  if (userInputUsesSudo(v)) return null
+  return v
 }
 
 function listPathToCli(listPath: string[]): string {
@@ -71,7 +76,8 @@ function autoListBlock(family: (typeof LIST_FAMILIES)[number], outputFormat: str
 }
 
 function manualArrayBlock(family: (typeof LIST_FAMILIES)[number], names: string[]): string {
-  const quoted = names.map((n) => shellQuote(n)).join(' ')
+  const safe = names.filter((n) => !userInputUsesSudo(n))
+  const quoted = safe.map((n) => shellQuote(n)).join(' ')
   return [`# ${family.label} — saisie manuelle (non enregistrée par Latch)`, `${family.arrayName}=(${quoted})`, ''].join(
     '\n',
   )
@@ -105,28 +111,39 @@ function buildInvocation(mapping: HelpMappingFile, block: ComposerBlock, setting
         block.bindings[key] ??
         defaultBindingForFlag('', key, settings) ??
         (key === 'NAME' ? '$AGENT' : '')
-      if (raw) tokens.push(quoteValue(raw))
+      if (raw && !raw.startsWith('$')) {
+        const safe = safeLiteral(raw)
+        if (!safe) continue
+        tokens.push(quoteValue(safe))
+      } else if (raw) tokens.push(quoteValue(raw))
       continue
     }
 
     const raw =
       block.bindings[flag.name] ?? defaultBindingForFlag(flag.name, '', settings)
     if (raw) {
-      tokens.push(flag.name, quoteValue(raw))
+      if (!raw.startsWith('$')) {
+        const safe = safeLiteral(raw)
+        if (!safe) continue
+        tokens.push(flag.name, quoteValue(safe))
+      } else {
+        tokens.push(flag.name, quoteValue(raw))
+      }
     }
   }
 
-  return tokens.join(' \\\n  ')
+  return tokens.join(' \\
+  ')
 }
 
 export function composeBashScript(mapping: HelpMappingFile, blocks: ComposerBlock[], settings: ComposeSettings): string {
   const header = [
     '#!/usr/bin/env bash',
-    '# Généré par Latch — exécuter dans votre terminal (jamais avec sudo).',
+    '# Généré par Latch — exécuter sous votre compte utilisateur.',
     'set -euo pipefail',
     '',
     'if [ "$(id -u)" -eq 0 ]; then',
-    '  echo "sudo / root interdit : la base pass-cli ne doit pas être possédée par root." >&2',
+    '  echo "Exécution en tant que root interdite pour pass-cli." >&2',
     '  exit 1',
     'fi',
     '',
@@ -169,9 +186,7 @@ export function composeBashScript(mapping: HelpMappingFile, blocks: ComposerBloc
     }
   }
 
-  const script = [...header, ...globals, ...familyBlocks, ...bodyLines, ''].join('\n')
-  if (commandTextUsesSudo(script)) throw new Error('Le script généré contient sudo — composition refusée.')
-  return script
+  return [...header, ...globals, ...familyBlocks, ...bodyLines, ''].join('\n')
 }
 
 export function nodeIsComposable(node: HelpNode): boolean {

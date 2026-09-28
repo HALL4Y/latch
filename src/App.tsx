@@ -18,7 +18,11 @@ import {
   loadBundledMapping,
 } from './lib/helpMapping'
 import { LATCH_INSTALL_PATH } from './lib/installPath'
-import { commandTextUsesSudo, SUDO_REFUSAL_MESSAGE } from './lib/sudoPolicy'
+import {
+  SUDO_REFUSAL_MESSAGE,
+  scriptContainsSudoWord,
+  userInputUsesSudo,
+} from './lib/sudoPolicy'
 
 function defaultFamilies(mapping: HelpMappingFile): Record<FamilyKey, FamilyConfig> {
   const base = (_key: FamilyKey, listPath: string[]): FamilyConfig => ({
@@ -47,6 +51,7 @@ function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [copyNotice, setCopyNotice] = useState<string | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
+  const [assistantError, setAssistantError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/pass-cli/version')
@@ -61,13 +66,10 @@ function App() {
     [role, outputFormat, families],
   )
 
-  const script = useMemo(() => {
-    try {
-      return composeBashScript(mapping, blocks, settings)
-    } catch (e) {
-      return `# ${e instanceof Error ? e.message : 'Erreur de composition'}`
-    }
-  }, [mapping, blocks, settings])
+  const script = useMemo(
+    () => composeBashScript(mapping, blocks, settings),
+    [mapping, blocks, settings],
+  )
 
   const versionStale =
     cliVersion?.available &&
@@ -111,12 +113,13 @@ function App() {
       if (f.possibleValues?.length) bindings[f.name] = f.possibleValues[0]
     }
     setBlocks((b) => [...b, { id: crypto.randomUUID().slice(0, 8), path, bindings }])
+    setAssistantError(null)
   }
 
   function copyScript() {
     setRunError(null)
     setCopyNotice(null)
-    if (commandTextUsesSudo(script)) {
+    if (scriptContainsSudoWord(script)) {
       setRunError(SUDO_REFUSAL_MESSAGE)
       return
     }
@@ -129,12 +132,12 @@ function App() {
         if (ok) setCopyNotice('Script copié dans le presse-papiers.')
         else
           setRunError(
-            'Impossible de copier le script (permission refusée ou contexte non sécurisé). Sélectionnez le bloc ci-dessus manuellement.',
+            'Impossible de copier le script (permission refusée ou contexte non sécurisé). Sélectionnez l’aperçu ci-dessus.',
           )
       })
       .catch(() => {
         setRunError(
-          'Impossible de copier le script (permission refusée ou contexte non sécurisé). Sélectionnez le bloc ci-dessus manuellement.',
+          'Impossible de copier le script (permission refusée ou contexte non sécurisé). Sélectionnez l’aperçu ci-dessus.',
         )
       })
   }
@@ -169,42 +172,44 @@ function App() {
         </div>
       </header>
 
-      <div className="main-grid">
-        <section className="panel">
+      <div className="top-grid">
+        <section className="panel panel-compact">
           <h2>Menu pass-cli</h2>
-          <p className="muted">
-            <button type="button" className="linkish" disabled={navPath.length === 0} onClick={() => navigateTo([])}>
+          <p className="muted breadcrumb">
+            <button type="button" className="crumb" disabled={navPath.length === 0} onClick={() => navigateTo([])}>
               Racine
             </button>
             {navPath.map((p, i) => (
               <span key={i}>
                 {' / '}
-                <button type="button" className="linkish" onClick={() => navigateTo(navPath.slice(0, i + 1))}>
+                <button type="button" className="crumb" onClick={() => navigateTo(navPath.slice(0, i + 1))}>
                   {p}
                 </button>
               </span>
             ))}
           </p>
-          {currentNode && (
-            <p className="muted">{currentNode.description}</p>
-          )}
-          <ul className="menu-list">
+          <ul className="menu-list dense">
             {currentNode?.children.map((child) => {
               const childPath = [...navPath, child.name]
               const childNode = getNode(mapping, childPath)
-              const isLeaf = childNode && nodeIsComposable(childNode)
+              const hasChildren = Boolean(childNode && childNode.children.length > 0)
+              const canAdd = Boolean(childNode && nodeIsComposable(childNode))
               return (
-                <li key={child.name} className="menu-item">
-                  <div>
+                <li key={child.name} className="menu-item dense">
+                  <div className="menu-label">
                     <strong>{child.name}</strong>
                     <span className="muted"> — {child.description}</span>
                   </div>
                   <div className="menu-actions">
-                    {childNode && childNode.children.length > 0 && (
-                      <button type="button" onClick={() => navigateTo(childPath)}>Ouvrir</button>
+                    {hasChildren && (
+                      <button type="button" className="btn-open" onClick={() => navigateTo(childPath)}>
+                        Ouvrir
+                      </button>
                     )}
-                    {isLeaf && (
-                      <button type="button" onClick={() => addBlock(childPath)}>Ajouter au script</button>
+                    {canAdd && (
+                      <button type="button" className="btn-add" onClick={() => addBlock(childPath)}>
+                        Ajouter au script
+                      </button>
                     )}
                   </div>
                 </li>
@@ -213,119 +218,169 @@ function App() {
           </ul>
         </section>
 
-        <section className="panel">
-          <h2>Assistant</h2>
-          <fieldset>
-            <legend>Rôle global (--role)</legend>
-            {(['viewer', 'editor', 'manager'] as const).map((r) => (
-              <label key={r}>
-                <input type="radio" name="role" checked={role === r} onChange={() => setRole(r)} />
-                {r}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset>
-            <legend>Format de sortie (--output)</legend>
-            <label>
-              <input type="radio" name="out" checked={outputFormat === 'json'} onChange={() => setOutputFormat('json')} />
-              json
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="out"
-                checked={outputFormat === 'human'}
-                onChange={() => setOutputFormat('human')}
-              />
-              human
-            </label>
-          </fieldset>
-
-          <h3>Familles de listes</h3>
-          <p className="muted">
-            Manuel : noms en mémoire jusqu’à la copie. Auto : le script liste dans votre terminal (Latch ne reçoit
-            rien). <code>item list</code> n’est jamais une source auto.
-          </p>
-          {LIST_FAMILIES.map((fam) => {
-            if (!familyHasList(mapping, fam.listPath)) return null
-            const cfg = families[fam.key]
-            return (
-              <div key={fam.key} className="family-row">
-                <strong>{fam.label}</strong>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={cfg.useInLoops}
-                    onChange={(e) =>
-                      setFamilies((f) => ({
-                        ...f,
-                        [fam.key]: { ...f[fam.key], useInLoops: e.target.checked },
-                      }))
-                    }
-                  />
-                  Boucles <code>{fam.arrayName}</code>
-                </label>
-                <select
-                  value={cfg.mode}
-                  onChange={(e) =>
-                    setFamilies((f) => ({
-                      ...f,
-                      [fam.key]: { ...f[fam.key], mode: e.target.value as FamilyConfig['mode'] },
-                    }))
-                  }
-                >
-                  <option value="off">Désactivé</option>
-                  <option value="manual">Manuel</option>
-                  <option value="auto">Auto (terminal)</option>
-                </select>
-                {cfg.mode === 'manual' && (
-                  <input
-                    className="input"
-                    placeholder="Noms séparés par des virgules"
-                    value={cfg.manualNames.join(', ')}
-                    onChange={(e) =>
-                      setFamilies((f) => ({
-                        ...f,
-                        [fam.key]: {
-                          ...f[fam.key],
-                          manualNames: e.target.value
-                            .split(',')
-                            .map((s) => s.trim())
-                            .filter(Boolean),
-                        },
-                      }))
-                    }
-                  />
-                )}
-              </div>
-            )
-          })}
-
-          <h3>Commandes composées</h3>
-          {blocks.length === 0 ? (
-            <p className="muted">Ajoutez une commande depuis le menu (feuilles de l’aide).</p>
+        <section className="panel panel-compact">
+          <h2>Nœud ouvert</h2>
+          {navPath.length === 0 ? (
+            <p className="muted">Choisissez une commande à gauche avec <span className="btn-open inline">Ouvrir</span>.</p>
           ) : (
-            <ol className="step-list">
-              {blocks.map((b, i) => (
-                <li key={b.id}>
-                  {i + 1}. {commandLabel(b.path)}
-                  <button type="button" className="linkish" onClick={() => setBlocks((x) => x.filter((y) => y.id !== b.id))}>
-                    Retirer
-                  </button>
-                  <BlockEditor mapping={mapping} block={b} onChange={(bindings) => {
-                    setBlocks((all) => all.map((x) => (x.id === b.id ? { ...x, bindings } : x)))
-                  }} />
-                </li>
-              ))}
-            </ol>
+            <>
+              <p className="mono path-line">pass-cli {navPath.join(' ')}</p>
+              <p className="muted">{currentNode?.description}</p>
+              {currentNode && nodeIsComposable(currentNode) && (
+                <button type="button" className="btn-add" onClick={() => addBlock(navPath)}>
+                  Ajouter au script
+                </button>
+              )}
+              {currentNode && currentNode.flags.filter((f) => f.name !== '--help').length > 0 && (
+                <ul className="flag-hints">
+                  {currentNode.flags
+                    .filter((f) => f.name !== '--help')
+                    .map((f) => (
+                      <li key={f.name}>
+                        <code>{f.name}</code> — {f.description || (f.positional ? 'argument' : '')}
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </>
           )}
         </section>
       </div>
 
-      <section className="panel">
-        <h2>Script bash</h2>
-        <p className="muted">À copier et exécuter dans votre terminal. Jamais sudo. Latch n’exécute que --version et --help.</p>
-        <pre className="script-block">{script}</pre>
+      <section className="panel composer-band">
+        <h2>Compositeur</h2>
+        {assistantError && <p className="error pre-wrap">{assistantError}</p>}
+
+        <div className="composer-grid">
+          <div>
+            <fieldset>
+              <legend>Rôle global (--role)</legend>
+              {(['viewer', 'editor', 'manager'] as const).map((r) => (
+                <label key={r}>
+                  <input type="radio" name="role" checked={role === r} onChange={() => setRole(r)} />
+                  {r}
+                </label>
+              ))}
+            </fieldset>
+            <fieldset>
+              <legend>Format de sortie (--output)</legend>
+              <label>
+                <input type="radio" name="out" checked={outputFormat === 'json'} onChange={() => setOutputFormat('json')} />
+                json
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="out"
+                  checked={outputFormat === 'human'}
+                  onChange={() => setOutputFormat('human')}
+                />
+                human
+              </label>
+            </fieldset>
+          </div>
+
+          <div>
+            <h3>Familles de listes</h3>
+            <p className="muted small">
+              Manuel : mémoire jusqu’à la copie. Auto : listage dans votre terminal. Pas d’auto sur{' '}
+              <code>item list</code>.
+            </p>
+            {LIST_FAMILIES.map((fam) => {
+              if (!familyHasList(mapping, fam.listPath)) return null
+              const cfg = families[fam.key]
+              return (
+                <div key={fam.key} className="family-row compact">
+                  <strong>{fam.label}</strong>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={cfg.useInLoops}
+                      onChange={(e) =>
+                        setFamilies((f) => ({
+                          ...f,
+                          [fam.key]: { ...f[fam.key], useInLoops: e.target.checked },
+                        }))
+                      }
+                    />
+                    Boucles <code>{fam.arrayName}</code>
+                  </label>
+                  <select
+                    value={cfg.mode}
+                    onChange={(e) =>
+                      setFamilies((f) => ({
+                        ...f,
+                        [fam.key]: { ...f[fam.key], mode: e.target.value as FamilyConfig['mode'] },
+                      }))
+                    }
+                  >
+                    <option value="off">Désactivé</option>
+                    <option value="manual">Manuel</option>
+                    <option value="auto">Auto (terminal)</option>
+                  </select>
+                  {cfg.mode === 'manual' && (
+                    <input
+                      className="input"
+                      placeholder="Noms séparés par des virgules"
+                      value={cfg.manualNames.join(', ')}
+                      onChange={(e) => {
+                        const parts = e.target.value.split(',').map((s) => s.trim())
+                        const rejected = parts.filter((p) => p && userInputUsesSudo(p))
+                        if (rejected.length) {
+                          setAssistantError(SUDO_REFUSAL_MESSAGE)
+                        } else {
+                          setAssistantError(null)
+                        }
+                        setFamilies((f) => ({
+                          ...f,
+                          [fam.key]: {
+                            ...f[fam.key],
+                            manualNames: parts.filter((p) => p && !userInputUsesSudo(p)),
+                          },
+                        }))
+                      }}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div>
+            <h3>Étapes du script</h3>
+            {blocks.length === 0 ? (
+              <p className="muted">Ajoutez une commande depuis le menu.</p>
+            ) : (
+              <ol className="step-list compact">
+                {blocks.map((b, i) => (
+                  <li key={b.id}>
+                    <span>{i + 1}. {commandLabel(b.path)}</span>
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => setBlocks((x) => x.filter((y) => y.id !== b.id))}
+                    >
+                      Retirer
+                    </button>
+                    <BlockEditor
+                      mapping={mapping}
+                      block={b}
+                      onSudoReject={() => setAssistantError(SUDO_REFUSAL_MESSAGE)}
+                      onClearSudo={() => setAssistantError(null)}
+                      onChange={(bindings) => {
+                        setBlocks((all) => all.map((x) => (x.id === b.id ? { ...x, bindings } : x)))
+                      }}
+                    />
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+
+        <h3>Aperçu bash (temps réel)</h3>
+        <p className="muted small">Sélectionnable. Copier envoie exactement ce texte.</p>
+        <pre className="script-block selectable">{script}</pre>
         <div className="actions">
           <button type="button" onClick={copyScript}>Copier le script</button>
         </div>
@@ -342,14 +397,27 @@ function BlockEditor({
   mapping,
   block,
   onChange,
+  onSudoReject,
+  onClearSudo,
 }: {
   mapping: HelpMappingFile
   block: ComposerBlock
   onChange: (bindings: Record<string, string>) => void
+  onSudoReject: () => void
+  onClearSudo: () => void
 }) {
   const node = getNode(mapping, block.path)
   if (!node) return null
   const fields = node.flags.filter((f) => f.name !== '--help')
+
+  function updateField(name: string, value: string) {
+    if (value && userInputUsesSudo(value)) {
+      onSudoReject()
+      return
+    }
+    onClearSudo()
+    onChange({ ...block.bindings, [name]: value })
+  }
 
   return (
     <div className="param-grid compact">
@@ -357,10 +425,7 @@ function BlockEditor({
         <label key={f.name} className="param-row">
           <code>{f.name}</code>
           {f.possibleValues ? (
-            <select
-              value={block.bindings[f.name] ?? ''}
-              onChange={(e) => onChange({ ...block.bindings, [f.name]: e.target.value })}
-            >
+            <select value={block.bindings[f.name] ?? ''} onChange={(e) => updateField(f.name, e.target.value)}>
               <option value="">—</option>
               {f.possibleValues.map((v) => (
                 <option key={v} value={v}>{v}</option>
@@ -371,7 +436,7 @@ function BlockEditor({
               className="input"
               value={block.bindings[f.name] ?? ''}
               placeholder={f.positional ? 'ex. $AGENT' : 'valeur ou $VAULT'}
-              onChange={(e) => onChange({ ...block.bindings, [f.name]: e.target.value })}
+              onChange={(e) => updateField(f.name, e.target.value)}
             />
           )}
         </label>

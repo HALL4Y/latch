@@ -6,6 +6,17 @@ export function lineStartsWithSudo(line: string): boolean {
   return /^\s*sudo\b/.test(line.trim())
 }
 
+/** Saisie utilisateur (nom, flag) — refuser si le token commence par sudo. */
+export function userInputUsesSudo(value: string): boolean {
+  const t = value.trim()
+  if (!t) return false
+  return lineStartsWithSudo(t) || /^\s*sudo\b/i.test(t)
+}
+
+export function scriptContainsSudoWord(script: string): boolean {
+  return /\bsudo\b/i.test(script)
+}
+
 /** Détecte une invocation sudo réelle, pas le mot « sudo » dans un commentaire (# …). */
 export function commandTextUsesSudo(text: string): boolean {
   const lines = text.split(/\r?\n/)
