@@ -87,6 +87,33 @@ h2 {
   border-top: 1px solid #2a2f3a;
 }
 
+.list-preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.chip {
+  background: #1e2430;
+  color: #c8d0dc;
+  border: 1px solid #333a48;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: #5b8def;
+}
+
+.chip-active {
+  background: #2a3344;
+  border-color: #7eb8ff;
+  color: #fff;
+}
+
 .composer-toolbar {
   display: flex;
   flex-wrap: wrap;
