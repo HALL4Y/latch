@@ -24,7 +24,7 @@ export type ComposeSettings = {
 
 function shellQuote(s: string): string {
   if (/^[a-zA-Z0-9._/@+-]+$/.test(s)) return s
-  return `'${s.replace(/'/g, `'\\''`)}'`
+  return `'${s.replace(/'/g, `'\''`)}'`
 }
 
 function quoteValue(v: string): string {
@@ -162,6 +162,52 @@ function resolveNakedToken(
     return raw
   }
   return null
+}
+
+export function simplePlaceholderForFlag(flag: HelpNode['flags'][number]): string {
+  if (flag.positional) {
+    if (flag.name === 'NAME') return '<nom>'
+    return `<${flag.name.toLowerCase()}>`
+  }
+  const n = flag.name.replace(/^--/, '')
+  if (n === 'personal-access-token-id' || n.endsWith('-id')) return '<id>'
+  if (n === 'personal-access-token-name' || n.endsWith('-name')) return '<nom>'
+  if (n.endsWith('-title')) return '<titre>'
+  if (flag.possibleValues?.length) return `<${flag.possibleValues[0]}>`
+  const tail = n.split('-').pop() ?? 'valeur'
+  return `<${tail}>`
+}
+
+function simpleDisplayValue(block: ComposerBlock, flag: HelpNode['flags'][number]): string {
+  const bound = block.bindings[flag.name]
+  if (bound && !bound.startsWith('$')) {
+    const safe = safeLiteral(bound)
+    if (safe) return safe
+  }
+  return simplePlaceholderForFlag(flag)
+}
+
+export function buildSimpleInvocation(mapping: HelpMappingFile, block: ComposerBlock): string {
+  const node = getNode(mapping, block.path)
+  if (!node) return `pass-cli ${block.path.join(' ')}`
+
+  const tokens: string[] = ['pass-cli', ...block.path]
+
+  for (const flag of node.flags) {
+    if (flag.name === '--help') continue
+    if (flag.positional) {
+      tokens.push(simpleDisplayValue(block, flag))
+    } else {
+      tokens.push(flag.name, simpleDisplayValue(block, flag))
+    }
+  }
+
+  return tokens.join(' ')
+}
+
+export function composeSimpleCommandLine(mapping: HelpMappingFile, blocks: ComposerBlock[]): string {
+  if (blocks.length === 0) return ''
+  return blocks.map((b) => buildSimpleInvocation(mapping, b)).join(' && ')
 }
 
 export function buildNakedInvocation(
