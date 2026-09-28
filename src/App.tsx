@@ -4,7 +4,9 @@ import {
   type ComposeSettings,
   type ComposerBlock,
   type FamilyConfig,
+  collectFlagEnum,
   composeBashScript,
+  composeNakedCommandLine,
   nodeIsComposable,
 } from './lib/bashComposer'
 import { copyToClipboard, copyWithExecCommand } from './lib/copyToClipboard'
@@ -18,11 +20,10 @@ import {
   loadBundledMapping,
 } from './lib/helpMapping'
 import { LATCH_INSTALL_PATH } from './lib/installPath'
-import {
-  SUDO_REFUSAL_MESSAGE,
-  scriptContainsSudoWord,
-  userInputUsesSudo,
-} from './lib/sudoPolicy'
+import { scriptContainsSudoWord, userInputUsesSudo } from './lib/sudoPolicy'
+
+const INPUT_REFUSAL = 'Saisie refusée.'
+const COPY_SCRIPT_REFUSAL = 'Copie refusée : le script contient une saisie interdite.'
 
 function defaultFamilies(mapping: HelpMappingFile): Record<FamilyKey, FamilyConfig> {
   const base = (_key: FamilyKey, listPath: string[]): FamilyConfig => ({
@@ -38,6 +39,34 @@ function defaultFamilies(mapping: HelpMappingFile): Record<FamilyKey, FamilyConf
   }
 }
 
+function SegmentedControl<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: T[]
+  value: T
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="segmented" role="group" aria-label={label}>
+      <span className="segmented-label">{label}</span>
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          className={value === opt ? 'segmented-active' : ''}
+          onClick={() => onChange(opt)}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function App() {
   const [mapping, setMapping] = useState<HelpMappingFile>(() => loadBundledMapping())
   const [navPath, setNavPath] = useState<string[]>([])
@@ -49,9 +78,28 @@ function App() {
   )
   const [cliVersion, setCliVersion] = useState<{ available: boolean; version?: string } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [copyNotice, setCopyNotice] = useState<string | null>(null)
+  const [nakedCopyNotice, setNakedCopyNotice] = useState<string | null>(null)
+  const [scriptCopyNotice, setScriptCopyNotice] = useState<string | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
   const [assistantError, setAssistantError] = useState<string | null>(null)
+
+  const roleOptions = useMemo(() => {
+    const fromMap = collectFlagEnum(mapping, '--role')
+    return fromMap.length ? fromMap : ['viewer', 'editor', 'manager']
+  }, [mapping])
+
+  const outputOptions = useMemo(() => {
+    const fromMap = collectFlagEnum(mapping, '--output')
+    return (fromMap.length ? fromMap : ['json', 'human']) as ('json' | 'human')[]
+  }, [mapping])
+
+  useEffect(() => {
+    if (!roleOptions.includes(role)) setRole(roleOptions[0] ?? 'viewer')
+  }, [roleOptions, role])
+
+  useEffect(() => {
+    if (!outputOptions.includes(outputFormat)) setOutputFormat(outputOptions[0] ?? 'json')
+  }, [outputOptions, outputFormat])
 
   useEffect(() => {
     fetch('/api/pass-cli/version')
@@ -64,6 +112,11 @@ function App() {
   const settings: ComposeSettings = useMemo(
     () => ({ role, outputFormat, families }),
     [role, outputFormat, families],
+  )
+
+  const nakedLine = useMemo(
+    () => composeNakedCommandLine(mapping, blocks, settings),
+    [mapping, blocks, settings],
   )
 
   const script = useMemo(
@@ -116,30 +169,39 @@ function App() {
     setAssistantError(null)
   }
 
-  function copyScript() {
+  function copyText(text: string, onOk: (msg: string) => void, onFail: (msg: string) => void, okMsg: string) {
     setRunError(null)
-    setCopyNotice(null)
-    if (scriptContainsSudoWord(script)) {
-      setRunError(SUDO_REFUSAL_MESSAGE)
+    if (scriptContainsSudoWord(text)) {
+      onFail(COPY_SCRIPT_REFUSAL)
       return
     }
-    if (copyWithExecCommand(script)) {
-      setCopyNotice('Script copié dans le presse-papiers.')
+    if (copyWithExecCommand(text)) {
+      onOk(okMsg)
       return
     }
-    void copyToClipboard(script)
+    void copyToClipboard(text)
       .then((ok) => {
-        if (ok) setCopyNotice('Script copié dans le presse-papiers.')
-        else
-          setRunError(
-            'Impossible de copier le script (permission refusée ou contexte non sécurisé). Sélectionnez l’aperçu ci-dessus.',
-          )
+        if (ok) onOk(okMsg)
+        else onFail('Impossible de copier (permission refusée ou contexte non sécurisé).')
       })
-      .catch(() => {
-        setRunError(
-          'Impossible de copier le script (permission refusée ou contexte non sécurisé). Sélectionnez l’aperçu ci-dessus.',
-        )
-      })
+      .catch(() => onFail('Impossible de copier (permission refusée ou contexte non sécurisé).'))
+  }
+
+  function copyNakedLine() {
+    setNakedCopyNotice(null)
+    setScriptCopyNotice(null)
+    copyText(
+      nakedLine,
+      setNakedCopyNotice,
+      setRunError,
+      'Ligne de commandes copiée (sans en-tête bash ni boucles).',
+    )
+  }
+
+  function copyScript() {
+    setNakedCopyNotice(null)
+    setScriptCopyNotice(null)
+    copyText(script, setScriptCopyNotice, setRunError, 'Script bash complet copié dans le presse-papiers.')
   }
 
   return (
@@ -220,29 +282,17 @@ function App() {
 
         <section className="panel panel-compact">
           <h2>Nœud ouvert</h2>
-          {navPath.length === 0 ? (
-            <p className="muted">Choisissez une commande à gauche avec <span className="btn-open inline">Ouvrir</span>.</p>
-          ) : (
+          <p className="muted small">Chaîne des étapes (commandes seules, sans script bash).</p>
+          {nakedLine ? (
             <>
-              <p className="mono path-line">pass-cli {navPath.join(' ')}</p>
-              <p className="muted">{currentNode?.description}</p>
-              {currentNode && nodeIsComposable(currentNode) && (
-                <button type="button" className="btn-add" onClick={() => addBlock(navPath)}>
-                  Ajouter au script
-                </button>
-              )}
-              {currentNode && currentNode.flags.filter((f) => f.name !== '--help').length > 0 && (
-                <ul className="flag-hints">
-                  {currentNode.flags
-                    .filter((f) => f.name !== '--help')
-                    .map((f) => (
-                      <li key={f.name}>
-                        <code>{f.name}</code> — {f.description || (f.positional ? 'argument' : '')}
-                      </li>
-                    ))}
-                </ul>
-              )}
+              <pre className="naked-line selectable">{nakedLine}</pre>
+              <button type="button" className="btn-secondary" onClick={copyNakedLine}>
+                Copier la ligne de commandes
+              </button>
+              {nakedCopyNotice && <p className="ok" role="status">{nakedCopyNotice}</p>}
             </>
+          ) : (
+            <p className="muted">Ajoutez des étapes au compositeur pour afficher la chaîne.</p>
           )}
         </section>
       </div>
@@ -251,142 +301,119 @@ function App() {
         <h2>Compositeur</h2>
         {assistantError && <p className="error pre-wrap">{assistantError}</p>}
 
-        <div className="composer-grid">
-          <div>
-            <fieldset>
-              <legend>Rôle global (--role)</legend>
-              {(['viewer', 'editor', 'manager'] as const).map((r) => (
-                <label key={r}>
-                  <input type="radio" name="role" checked={role === r} onChange={() => setRole(r)} />
-                  {r}
-                </label>
-              ))}
-            </fieldset>
-            <fieldset>
-              <legend>Format de sortie (--output)</legend>
-              <label>
-                <input type="radio" name="out" checked={outputFormat === 'json'} onChange={() => setOutputFormat('json')} />
-                json
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="out"
-                  checked={outputFormat === 'human'}
-                  onChange={() => setOutputFormat('human')}
-                />
-                human
-              </label>
-            </fieldset>
-          </div>
+        <div className="composer-toolbar">
+          <SegmentedControl
+            label="Rôle (--role)"
+            options={roleOptions}
+            value={role}
+            onChange={setRole}
+          />
+          <SegmentedControl
+            label="Sortie (--output)"
+            options={outputOptions}
+            value={outputFormat}
+            onChange={setOutputFormat}
+          />
+        </div>
 
-          <div>
-            <h3>Familles de listes</h3>
-            <p className="muted small">
-              Manuel : mémoire jusqu’à la copie. Auto : listage dans votre terminal. Pas d’auto sur{' '}
-              <code>item list</code>.
-            </p>
-            {LIST_FAMILIES.map((fam) => {
-              if (!familyHasList(mapping, fam.listPath)) return null
-              const cfg = families[fam.key]
-              return (
-                <div key={fam.key} className="family-row compact">
-                  <strong>{fam.label}</strong>
-                  <label className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={cfg.useInLoops}
-                      onChange={(e) =>
-                        setFamilies((f) => ({
-                          ...f,
-                          [fam.key]: { ...f[fam.key], useInLoops: e.target.checked },
-                        }))
-                      }
-                    />
-                    Boucles <code>{fam.arrayName}</code>
-                  </label>
-                  <select
-                    value={cfg.mode}
+        <h3>Familles de listes</h3>
+        <p className="muted small">
+          Manuel : mémoire jusqu’à la copie. Auto : listage dans votre terminal. Pas d’auto sur <code>item list</code>.
+        </p>
+        <div className="family-table">
+          {LIST_FAMILIES.map((fam) => {
+            if (!familyHasList(mapping, fam.listPath)) return null
+            const cfg = families[fam.key]
+            return (
+              <div key={fam.key} className="family-line">
+                <label className="family-check">
+                  <input
+                    type="checkbox"
+                    checked={cfg.useInLoops}
                     onChange={(e) =>
                       setFamilies((f) => ({
                         ...f,
-                        [fam.key]: { ...f[fam.key], mode: e.target.value as FamilyConfig['mode'] },
+                        [fam.key]: { ...f[fam.key], useInLoops: e.target.checked },
                       }))
                     }
-                  >
-                    <option value="off">Désactivé</option>
-                    <option value="manual">Manuel</option>
-                    <option value="auto">Auto (terminal)</option>
-                  </select>
-                  {cfg.mode === 'manual' && (
-                    <input
-                      className="input"
-                      placeholder="Noms séparés par des virgules"
-                      value={cfg.manualNames.join(', ')}
-                      onChange={(e) => {
-                        const parts = e.target.value.split(',').map((s) => s.trim())
-                        const rejected = parts.filter((p) => p && userInputUsesSudo(p))
-                        if (rejected.length) {
-                          setAssistantError(SUDO_REFUSAL_MESSAGE)
-                        } else {
-                          setAssistantError(null)
-                        }
-                        setFamilies((f) => ({
-                          ...f,
-                          [fam.key]: {
-                            ...f[fam.key],
-                            manualNames: parts.filter((p) => p && !userInputUsesSudo(p)),
-                          },
-                        }))
-                      }}
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          <div>
-            <h3>Étapes du script</h3>
-            {blocks.length === 0 ? (
-              <p className="muted">Ajoutez une commande depuis le menu.</p>
-            ) : (
-              <ol className="step-list compact">
-                {blocks.map((b, i) => (
-                  <li key={b.id}>
-                    <span>{i + 1}. {commandLabel(b.path)}</span>
-                    <button
-                      type="button"
-                      className="linkish"
-                      onClick={() => setBlocks((x) => x.filter((y) => y.id !== b.id))}
-                    >
-                      Retirer
-                    </button>
-                    <BlockEditor
-                      mapping={mapping}
-                      block={b}
-                      onSudoReject={() => setAssistantError(SUDO_REFUSAL_MESSAGE)}
-                      onClearSudo={() => setAssistantError(null)}
-                      onChange={(bindings) => {
-                        setBlocks((all) => all.map((x) => (x.id === b.id ? { ...x, bindings } : x)))
-                      }}
-                    />
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
+                  />
+                  <span>{fam.label}</span>
+                </label>
+                <select
+                  className="family-mode"
+                  value={cfg.mode}
+                  onChange={(e) =>
+                    setFamilies((f) => ({
+                      ...f,
+                      [fam.key]: { ...f[fam.key], mode: e.target.value as FamilyConfig['mode'] },
+                    }))
+                  }
+                >
+                  <option value="off">Désactivé</option>
+                  <option value="manual">Manuel</option>
+                  <option value="auto">Auto</option>
+                </select>
+                {cfg.mode === 'manual' && (
+                  <input
+                    className="input family-names"
+                    placeholder="Noms (virgules)"
+                    value={cfg.manualNames.join(', ')}
+                    onChange={(e) => {
+                      const parts = e.target.value.split(',').map((s) => s.trim())
+                      const rejected = parts.filter((p) => p && userInputUsesSudo(p))
+                      if (rejected.length) setAssistantError(INPUT_REFUSAL)
+                      else setAssistantError(null)
+                      setFamilies((f) => ({
+                        ...f,
+                        [fam.key]: {
+                          ...f[fam.key],
+                          manualNames: parts.filter((p) => p && !userInputUsesSudo(p)),
+                        },
+                      }))
+                    }}
+                  />
+                )}
+              </div>
+            )
+          })}
         </div>
 
+        <h3>Étapes du script</h3>
+        {blocks.length === 0 ? (
+          <p className="muted">Ajoutez une commande depuis le menu.</p>
+        ) : (
+          <ol className="step-list inline-steps">
+            {blocks.map((b, i) => (
+              <li key={b.id} className="step-inline">
+                <span className="step-title">{i + 1}. {commandLabel(b.path)}</span>
+                <BlockEditor
+                  mapping={mapping}
+                  block={b}
+                  onSudoReject={() => setAssistantError(INPUT_REFUSAL)}
+                  onClearSudo={() => setAssistantError(null)}
+                  onChange={(bindings) => {
+                    setBlocks((all) => all.map((x) => (x.id === b.id ? { ...x, bindings } : x)))
+                  }}
+                />
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => setBlocks((x) => x.filter((y) => y.id !== b.id))}
+                >
+                  Retirer
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+
         <h3>Aperçu bash (temps réel)</h3>
-        <p className="muted small">Sélectionnable. Copier envoie exactement ce texte.</p>
+        <p className="muted small">Script complet avec boucles et tableaux. Sélectionnable.</p>
         <pre className="script-block selectable">{script}</pre>
         <div className="actions">
           <button type="button" onClick={copyScript}>Copier le script</button>
         </div>
-        {copyNotice && (
-          <p className="ok" role="status" aria-live="polite">{copyNotice}</p>
-        )}
+        {scriptCopyNotice && <p className="ok" role="status">{scriptCopyNotice}</p>}
         {runError && <p className="error pre-wrap">{runError}</p>}
       </section>
     </div>
@@ -420,12 +447,16 @@ function BlockEditor({
   }
 
   return (
-    <div className="param-grid compact">
+    <span className="step-fields">
       {fields.map((f) => (
-        <label key={f.name} className="param-row">
+        <span key={f.name} className="step-field">
           <code>{f.name}</code>
           {f.possibleValues ? (
-            <select value={block.bindings[f.name] ?? ''} onChange={(e) => updateField(f.name, e.target.value)}>
+            <select
+              className="input-inline"
+              value={block.bindings[f.name] ?? ''}
+              onChange={(e) => updateField(f.name, e.target.value)}
+            >
               <option value="">—</option>
               {f.possibleValues.map((v) => (
                 <option key={v} value={v}>{v}</option>
@@ -433,15 +464,15 @@ function BlockEditor({
             </select>
           ) : (
             <input
-              className="input"
+              className="input-inline"
               value={block.bindings[f.name] ?? ''}
-              placeholder={f.positional ? 'ex. $AGENT' : 'valeur ou $VAULT'}
+              placeholder={f.positional ? '$AGENT' : ''}
               onChange={(e) => updateField(f.name, e.target.value)}
             />
           )}
-        </label>
+        </span>
       ))}
-    </div>
+    </span>
   )
 }
 

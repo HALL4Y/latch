@@ -96,6 +96,127 @@ function defaultBindingForFlag(
   return undefined
 }
 
+function placeholderForField(
+  flagName: string,
+  positional: boolean,
+  path: string[],
+  settings: ComposeSettings,
+): string {
+  if (flagName === '--vault-name') {
+    return settings.families.vault.useInLoops ? '$VAULT' : '<$vault>'
+  }
+  if (flagName === '--share-id') {
+    return settings.families.share.useInLoops ? '$SHARE' : '<$share>'
+  }
+  if (positional && flagName === 'NAME') {
+    if (path[0] === 'personal-access-token' || path.includes('pat')) {
+      return settings.families.pat.useInLoops ? '$PAT' : '<$pat>'
+    }
+    if (path[0] === 'agent') {
+      return settings.families.agent.useInLoops ? '$AGENT' : '<$agent>'
+    }
+    return '<$name>'
+  }
+  const slug = flagName.replace(/^--/, '').replace(/-/g, '')
+  return `<$${slug || 'valeur'}>`
+}
+
+function resolveNakedToken(
+  block: ComposerBlock,
+  settings: ComposeSettings,
+  flag: HelpNode['flags'][number],
+): string | null {
+  if (flag.name === '--help') return null
+
+  if (flag.positional) {
+    const key = flag.name
+    const raw =
+      block.bindings[key] ??
+      defaultBindingForFlag('', key, settings) ??
+      (key === 'NAME' && settings.families.agent.useInLoops ? '$AGENT' : '')
+    if (raw && !raw.startsWith('$')) {
+      const safe = safeLiteral(raw)
+      return safe ?? placeholderForField(key, true, block.path, settings)
+    }
+    if (raw) return raw
+    return placeholderForField(key, true, block.path, settings)
+  }
+
+  if (flag.name === '--role' && settings.role) {
+    const bound = block.bindings['--role']
+    if (bound && !bound.startsWith('$')) return bound
+    return settings.role
+  }
+  if (flag.name === '--output' && settings.outputFormat) {
+    const bound = block.bindings['--output']
+    if (bound && !bound.startsWith('$')) return bound
+    return settings.outputFormat
+  }
+
+  const raw = block.bindings[flag.name] ?? defaultBindingForFlag(flag.name, '', settings)
+  if (raw) {
+    if (!raw.startsWith('$')) {
+      const safe = safeLiteral(raw)
+      return safe ?? placeholderForField(flag.name, false, block.path, settings)
+    }
+    return raw
+  }
+  return null
+}
+
+export function buildNakedInvocation(
+  mapping: HelpMappingFile,
+  block: ComposerBlock,
+  settings: ComposeSettings,
+): string {
+  const node = getNode(mapping, block.path)
+  if (!node) return `pass-cli ${block.path.join(' ')}`
+
+  const tokens: string[] = ['pass-cli', ...block.path]
+  const hasOutputFlag = node.flags.some((f) => f.name === '--output')
+  const hasRoleFlag = node.flags.some((f) => f.name === '--role')
+
+  for (const flag of node.flags) {
+    const tok = resolveNakedToken(block, settings, flag)
+    if (tok === null) continue
+    if (flag.positional) {
+      tokens.push(tok)
+    } else {
+      tokens.push(flag.name, tok)
+    }
+  }
+
+  if (settings.outputFormat && hasOutputFlag && !tokens.includes('--output')) {
+    tokens.push('--output', settings.outputFormat)
+  }
+  if (settings.role && hasRoleFlag && !tokens.includes('--role')) {
+    tokens.push('--role', settings.role)
+  }
+
+  return tokens.join(' ')
+}
+
+export function composeNakedCommandLine(
+  mapping: HelpMappingFile,
+  blocks: ComposerBlock[],
+  settings: ComposeSettings,
+): string {
+  if (blocks.length === 0) return ''
+  return blocks.map((b) => buildNakedInvocation(mapping, b, settings)).join(' && ')
+}
+
+export function collectFlagEnum(mapping: HelpMappingFile, flagName: string): string[] {
+  const values = new Set<string>()
+  for (const node of Object.values(mapping.nodes)) {
+    for (const f of node.flags) {
+      if (f.name === flagName && f.possibleValues) {
+        for (const v of f.possibleValues) values.add(v)
+      }
+    }
+  }
+  return [...values]
+}
+
 function buildInvocation(mapping: HelpMappingFile, block: ComposerBlock, settings: ComposeSettings): string {
   const node = getNode(mapping, block.path)
   if (!node) return `# commande inconnue: ${block.path.join(' ')}`
