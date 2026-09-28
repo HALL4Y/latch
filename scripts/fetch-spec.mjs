@@ -1,2 +1,1 @@
-#!/usr/bin/env node
-// placeholder
+file:///workspace/scripts/fetch-spec.mjs
