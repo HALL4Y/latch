@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { spawnSync } from 'node:child_process'
 import { defineConfig, type Plugin } from 'vite'
+import { isKeyringOrSudoError, KEYCHAIN_USER_MESSAGE } from './src/lib/keyringErrors.ts'
 
 const PORT = 4317
 
@@ -37,6 +38,17 @@ function latchLocalApi(): Plugin {
           res.end(JSON.stringify({ error: 'Invalid JSON' }))
           return
         }
+        if (typeof process.getuid === 'function' && process.getuid() === 0) {
+          res.statusCode = 403
+          res.end(
+            JSON.stringify({
+              error:
+                'Latch refuse d’exécuter pass-cli en root (sudo). Lancez le serveur de dev et pass-cli sous votre utilisateur graphique.',
+              keyring: true,
+            }),
+          )
+          return
+        }
         const argv = payload.argv
         if (!argv?.length || argv[0] !== 'pass-cli') {
           res.statusCode = 400
@@ -63,6 +75,13 @@ function latchLocalApi(): Plugin {
           return
         }
         const r = spawnSync(argv[0], argv.slice(1), { encoding: 'utf8', maxBuffer: 2 * 1024 * 1024 })
+        const combined = `${r.stderr ?? ''}\n${r.stdout ?? ''}`
+        if (isKeyringOrSudoError(combined)) {
+          res.statusCode = 503
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ error: KEYCHAIN_USER_MESSAGE, keyring: true }))
+          return
+        }
         res.setHeader('Content-Type', 'application/json')
         res.end(
           JSON.stringify({
