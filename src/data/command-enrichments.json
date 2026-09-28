@@ -1,0 +1,83 @@
+{
+  "vault.list": {
+    "flags": [
+      {
+        "name": "--output",
+        "type": "enum",
+        "allowedValues": ["human", "json"],
+        "help": "Format de sortie (doc officielle vault list)"
+      }
+    ]
+  },
+  "vault.member.list": {
+    "path": ["vault", "member", "list"],
+    "flags": [
+      { "name": "--share-id", "type": "string", "help": "Share ID du coffre" },
+      { "name": "--vault-name", "type": "string", "help": "Nom du coffre" },
+      {
+        "name": "--output",
+        "type": "enum",
+        "allowedValues": ["human", "json"],
+        "help": "Format de sortie"
+      }
+    ]
+  },
+  "vault.member.update": {
+    "path": ["vault", "member", "update"],
+    "flags": [
+      { "name": "--share-id", "type": "string", "help": "Share ID du coffre" },
+      { "name": "--vault-name", "type": "string", "help": "Nom du coffre" },
+      { "name": "--member-share-id", "required": true, "type": "string", "help": "Share ID du membre" },
+      {
+        "name": "--role",
+        "type": "enum",
+        "allowedValues": ["viewer", "editor", "manager"],
+        "help": "Nouveau rôle"
+      }
+    ]
+  },
+  "vault.member.remove": {
+    "path": ["vault", "member", "remove"],
+    "flags": [
+      { "name": "--share-id", "type": "string", "help": "Share ID du coffre" },
+      { "name": "--vault-name", "type": "string", "help": "Nom du coffre" },
+      { "name": "--member-share-id", "required": true, "type": "string", "help": "Share ID du membre" }
+    ]
+  },
+  "pat.list": {
+    "path": ["pat", "list"],
+    "flags": [
+      {
+        "name": "--output",
+        "type": "enum",
+        "allowedValues": ["human", "json"],
+        "help": "Format de sortie"
+      }
+    ]
+  },
+  "agent.access.grant": {
+    "positionalArgs": [{ "name": "NAME", "required": true, "type": "string", "help": "Nom de l’agent" }],
+    "flags": [
+      { "name": "--share-id", "type": "string", "help": "Share ID du coffre" },
+      { "name": "--vault-name", "type": "string", "help": "Nom du coffre" },
+      { "name": "--item-id", "type": "string", "help": "Limiter à un item (ID)" },
+      { "name": "--item-title", "type": "string", "help": "Limiter à un item (titre)" },
+      {
+        "name": "--role",
+        "type": "enum",
+        "allowedValues": ["viewer", "editor", "manager"],
+        "help": "Rôle accordé"
+      }
+    ]
+  },
+  "agent.list": {
+    "flags": [
+      {
+        "name": "--output",
+        "type": "enum",
+        "allowedValues": ["human", "json"],
+        "help": "Format de sortie"
+      }
+    ]
+  }
+}
