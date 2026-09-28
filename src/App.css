@@ -1,0 +1,284 @@
+.layout {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #e8eaed;
+  background: #0f1115;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #2a2f3a;
+  padding-bottom: 1rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+
+.tagline {
+  margin: 0.35rem 0 0;
+  color: #9aa3b2;
+  max-width: 36rem;
+  line-height: 1.45;
+}
+
+.header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.header-meta a {
+  color: #7eb8ff;
+}
+
+.panel {
+  background: #161a22;
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.muted {
+  color: #8b95a5;
+  font-size: 0.9rem;
+}
+
+.warn {
+  color: #f0b429;
+  font-size: 0.85rem;
+}
+
+.ok {
+  color: #3dd68c;
+  font-size: 0.85rem;
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+.starter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.6rem;
+}
+
+.starter-card {
+  text-align: left;
+  background: #1e2430;
+  border: 1px solid #333a48;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+  color: inherit;
+}
+
+.starter-card:hover {
+  border-color: #5b8def;
+}
+
+.starter-card strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.starter-card span {
+  font-size: 0.8rem;
+  color: #9aa3b2;
+}
+
+.step-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.step-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.step-list button:first-child {
+  flex: 1;
+  text-align: left;
+  background: #1e2430;
+  border: 1px solid #333a48;
+  color: inherit;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+
+.step-active {
+  border-color: #5b8def !important;
+}
+
+.linkish {
+  background: none;
+  border: none;
+  color: #7eb8ff;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0f1115;
+  border: 1px solid #333a48;
+  border-radius: 6px;
+  color: inherit;
+  padding: 0.45rem 0.55rem;
+  margin-bottom: 0.5rem;
+}
+
+.command-pick {
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.command-pick button {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  background: #1a1f28;
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.command-pick small {
+  color: #7a8496;
+}
+
+.checkbox {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.mono {
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+}
+
+.preview {
+  background: #0f1115;
+  padding: 0.5rem;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+.script-block,
+.output-block {
+  background: #0a0c10;
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 0.75rem;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+button {
+  background: #2d5bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.param-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.param-row label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.param-row .help {
+  display: block;
+  color: #7a8496;
+  font-size: 0.78rem;
+}
+
+.req {
+  color: #f0b429;
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+}
+
+.param-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.param-controls select,
+.param-controls .input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.footer {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  text-align: center;
+}
