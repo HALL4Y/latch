@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "walk-help": "node scripts/walk-help.mjs",
     "fetch-spec": "node scripts/fetch-spec.mjs",
-    "build": "npm run fetch-spec && tsc -b && vite build",
+    "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
