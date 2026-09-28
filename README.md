@@ -68,7 +68,7 @@ npm run preview
 
 ## macOS keychain (`-25308`)
 
-If `pass-cli` was ever run with `sudo`, macOS may refuse keychain access (`User interaction is not allowed`). Run `pass-cli` as your normal GUI user, not root. Latch surfaces this in French and will not use `sudo`.
+If `pass-cli` was ever run with `sudo`, macOS may refuse keychain access (`User interaction is not allowed`) because `sudo` gives root ownership of the local database. Use only your normal GUI user for `pass-cli`. Latch never runs or suggests `sudo`, and will not offer a `sudo` “fix” for keychain errors.
 
 ## License
 
