@@ -87,6 +87,51 @@ h2 {
   color: #ff6b6b;
 }
 
+.flow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.flow-selected {
+  border-color: #7eb8ff;
+  box-shadow: 0 0 0 1px #7eb8ff;
+}
+
+.flow-options {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #2a2f3a;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.flow-options fieldset {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.flow-options label {
+  margin-right: 1rem;
+  font-size: 0.9rem;
+}
+
+.install-path {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.cmd-label {
+  text-align: left;
+}
+
+.pre-wrap {
+  white-space: pre-wrap;
+}
+
 .starter-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
