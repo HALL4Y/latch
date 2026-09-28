@@ -53,6 +53,7 @@ export function generatePosixScript(spec: PassCliSpec, group: GroupConfig): stri
   const lines: string[] = [
     '#!/bin/sh',
     '# Généré par Latch — interface locale pour pass-cli (POSIX sh)',
+    '# Ne jamais préfixer pass-cli avec sudo : la base locale passerait en root.',
     'set -eu',
     '',
     'if ! command -v pass-cli >/dev/null 2>&1; then',
