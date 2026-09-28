@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import {
   type ComposeSettings,
@@ -139,6 +139,14 @@ function App() {
     return composedSimpleLine
   }, [listPreviewPick, mapping, listPreviewChips, outputFormat, composedSimpleLine])
 
+  const simpleLineForCopyNotice = useRef(simpleLine)
+  useEffect(() => {
+    if (simpleLineForCopyNotice.current !== simpleLine) {
+      simpleLineForCopyNotice.current = simpleLine
+      setNakedCopyNotice(null)
+    }
+  }, [simpleLine])
+
   const script = useMemo(
     () => composeBashScript(mapping, blocks, settings),
     [mapping, blocks, settings],
@@ -181,6 +189,7 @@ function App() {
   function addBlock(path: string[]) {
     const node = getNode(mapping, path)
     if (!node || !nodeIsComposable(node)) return
+    setListPreviewPick(null)
     setBlocks((b) => [...b, { id: crypto.randomUUID().slice(0, 8), path, bindings: {} }])
     setAssistantError(null)
   }
@@ -226,7 +235,7 @@ function App() {
         <div>
           <h1>Latch</h1>
           <p className="tagline">
-            Composer des scripts <code>pass-cli</code> à partir de l’aide officielle — rien n’est exécuté dans
+            Composer des scripts <code>pass-cli</code> à partir de l'aide officielle — rien n'est exécuté dans
             cette page.
           </p>
           <p className="muted install-path">
@@ -400,7 +409,7 @@ function App() {
 
         <h3>Familles de listes</h3>
         <p className="muted small">
-          Manuel : mémoire jusqu’à la copie. Auto : listage dans votre terminal. Pas d’auto sur <code>item list</code>.
+          Manuel : mémoire jusqu'à la copie. Auto : listage dans votre terminal. Pas d'auto sur <code>item list</code>.
         </p>
         <div className="family-table">
           {LIST_FAMILIES.map((fam) => {
