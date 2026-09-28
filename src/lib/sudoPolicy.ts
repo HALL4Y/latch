@@ -6,11 +6,16 @@ export function lineStartsWithSudo(line: string): boolean {
   return /^\s*sudo\b/.test(line.trim())
 }
 
+/** Détecte une invocation sudo réelle, pas le mot « sudo » dans un commentaire (# …). */
 export function commandTextUsesSudo(text: string): boolean {
-  const t = text.trim()
-  if (lineStartsWithSudo(t)) return true
-  if (/\bsudo\s+pass-cli\b/.test(t)) return true
-  if (/\bsudo\s+/.test(t) && /\bpass-cli\b/.test(t)) return true
+  const lines = text.split(/\r?\n/)
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    if (lineStartsWithSudo(trimmed)) return true
+    if (/\bsudo\s+pass-cli\b/.test(trimmed)) return true
+    if (/\bsudo\s+/.test(trimmed) && /\bpass-cli\b/.test(trimmed)) return true
+  }
   return false
 }
 
