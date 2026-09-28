@@ -1,7 +1,20 @@
 import enrichments from '../data/command-enrichments.json'
-import snapshot from '../data/spec-snapshot.json'
+import snapshotPart1 from '../data/spec-snapshot.part1.json'
+import snapshotPart2 from '../data/spec-snapshot.part2.json'
 import { applyCommandPolicy } from './commandPolicy'
 import type { CommandDef, PassCliSpec } from './types'
+
+function mergeSnapshotParts(): PassCliSpec {
+  const a = snapshotPart1 as PassCliSpec
+  const b = snapshotPart2 as PassCliSpec & { part?: number }
+  return {
+    sourceUrl: a.sourceUrl,
+    rawDocBase: a.rawDocBase,
+    fetchedAt: a.fetchedAt,
+    cliVersionKnown: a.cliVersionKnown,
+    commands: [...a.commands, ...b.commands],
+  }
+}
 
 const enrichMap = enrichments as Record<
   string,
@@ -20,7 +33,7 @@ function isNoiseCommand(c: CommandDef): boolean {
 }
 
 export function loadSpec(): PassCliSpec {
-  const base = snapshot as PassCliSpec
+  const base = mergeSnapshotParts()
   const byId = new Map<string, CommandDef>()
 
   for (const c of base.commands) {
