@@ -1,39 +1,43 @@
 # Latch
 
-A desktop app to search, unlock, and copy Proton Pass items without living in the terminal.
+Latch is a **local web interface** for users who need fine-grained control over [Proton Pass CLI](https://protonpass.github.io/pass-cli/) (`pass-cli`). It is an independent client and is **not affiliated with Proton AG**.
 
-Latch is a desktop client for Proton Pass. Every vault operation goes through Proton's official `pass-cli`. Latch does not talk to Proton's servers on its own, and it does not keep a second copy of the vault.
+## Zero trust
 
-This is an independent project. It is not affiliated with Proton AG, and it is not endorsed by Proton.
+- Latch does **not** store vault items, passwords, tokens, PATs, or session secrets.
+- It attaches to your **already installed, already logged-in** `pass-cli` on the same machine.
+- Nothing is sent to a remote backend; command composition and optional local execution stay on your computer.
 
-## Status
+## What Latch is for
 
-This repository has just been opened. The app has not been started.
+- **Governance**: PATs scoped to vaults or items, agents, vault members, shares, and access inspection (only what the official CLI documents).
+- **Command mastery**: spec-driven forms for documented flags, multi-step **groups**, and POSIX `sh` scripts (not zsh) with bindings to earlier step metadata (IDs, roles, expiry — not secret values).
+- Latch is **not** an item browser: it does not retrieve item payloads or surface passwords/secrets in the UI.
 
-There is no source tree, no installer, and no release. This README is the only file in the repository.
+Official documentation is cited in the app. A cached spec snapshot ships with the repo for offline use; **Refresh** re-fetches the published docs.
 
 ## Requirements
 
-Latch expects `pass-cli` to already be set up on the same machine:
+- Node.js 20+
+- `pass-cli` on your `PATH` (optional for composing scripts; required for in-app version check and local run of non-secret commands)
 
-- `pass-cli` is installed.
-- You are already logged in with `pass-cli`.
-- Your Proton account and session stay on your machine.
+## Run locally
 
-This repository does not ship Proton credentials, tokens, or session files. Do not commit them here.
+```bash
+npm install
+npm run fetch-spec   # optional; snapshot is committed
+npm run dev
+```
 
-## What it is for
+Open **http://127.0.0.1:4317**.
 
-The app, once it exists, is meant for the parts of Proton Pass that are awkward to do from a shell prompt:
+## Build
 
-- Search items you already store in Proton Pass.
-- Unlock the vault through the existing `pass-cli` session.
-- Copy a username, password, or one-time code, then go back to the window you were using.
+```bash
+npm run build
+npm run preview
+```
 
-Until that work starts, none of the above is implemented.
+## License
 
-## What it is not
-
-- Not an official Proton product.
-- Not a password store of its own.
-- Not a place to paste secrets, export files, or account recovery data.
+MIT (see repository defaults).
