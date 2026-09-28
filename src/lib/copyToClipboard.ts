@@ -1,4 +1,4 @@
-function copyWithExecCommand(text: string): boolean {
+export function copyWithExecCommand(text: string): boolean {
   try {
     const ta = document.createElement('textarea')
     ta.value = text

@@ -1,63 +1,47 @@
 # Latch
 
-Latch is a **local web interface** for users who need fine-grained control over [Proton Pass CLI](https://protonpass.github.io/pass-cli/) (`pass-cli`). It is an independent client and is **not affiliated with Proton AG**.
+Interface locale (français) pour composer des scripts **bash** `pass-cli` à partir de l’arbre d’aide officiel. Latch ne lit pas les coffres, PAT, items ni secrets.
 
-## Install location
+**Chemin d’installation documenté :** `~/dev/h4ll4y/latch`
 
-Clone and run Latch at:
+## Sécurité
 
-```text
-~/dev/h4ll4y/latch
-```
+- Latch n’exécute **jamais** `sudo` et refuse les scripts qui contiennent `sudo`.
+- Dans l’UI et le serveur de dev, les seuls appels `pass-cli` autorisés sont **`--version`** et **`--help`** (parcours du mapping).
+- Les scripts générés s’exécutent **dans votre terminal** ; les listes en mode « auto » ne renvoient rien à Latch.
 
-Do **not** put the project at the root of your home directory (`~/latch`).
-
-## Zero trust
-
-- Latch does **not** store vault items, passwords, tokens, PATs, or session secrets.
-- It attaches to your **already installed, already logged-in** `pass-cli` on the same machine.
-- Nothing is sent to a remote backend; command composition and optional local execution stay on your computer.
-- Latch **never** runs `pass-cli` via `sudo` or as root.
-
-## What Latch is for
-
-- **Governance**: PATs scoped to vaults or items, agents, vault members, shares, and access inspection (only what the official CLI documents).
-- **Command mastery**: spec-driven forms for documented flags, multi-step **groups**, and POSIX `sh` scripts (not zsh) with bindings to earlier step metadata (IDs, roles, expiry — not secret values).
-- Latch is **not** an item browser: it does not retrieve item payloads or surface passwords/secrets in the UI.
-
-Official documentation is cited in the app. The offline command spec ships as `spec-snapshot.part1.json` … `part4.json` (regenerated together by `npm run fetch-spec`). **Refresh** in the app re-fetches the published docs.
-
-## Requirements
+## Prérequis
 
 - Node.js 20+
-- npm 11.10+ recommended (for `min-release-age` in `.npmrc`; older npm ignores unknown keys)
-- `pass-cli` on your `PATH` (optional for composing scripts; required for in-app version check and local run of non-secret commands)
+- `pass-cli` sur le `PATH` (optionnel pour l’UI : le dernier mapping embarqué est conservé)
 
-## npm install hardening (2025–2026 supply chain)
-
-This repo stays on **npm** (not pnpm/yarn/bun). [npmx.dev](https://npmx.dev) is a **registry browser**, not an installer — it does not replace npm.
-
-Project `.npmrc`:
-
-- `ignore-scripts=true` — dependency lifecycle scripts do not run on install (aligns with npm 12 defaults).
-- `min-release-age=7` — only package versions published at least 7 days ago resolve (npm 11.10+).
-
-**Preferred install in CI and clean machines:**
+## Installation
 
 ```bash
 cd ~/dev/h4ll4y/latch
 npm ci
-```
-
-For local development when `package-lock.json` changes:
-
-```bash
-npm install
-npm run fetch-spec   # optional; part snapshots are committed
 npm run dev
 ```
 
-Open **http://127.0.0.1:4317**.
+Ouvrir [http://127.0.0.1:4317](http://127.0.0.1:4317).
+
+## Actualiser le mapping (arbre d’aide)
+
+Le fichier `src/data/help-mapping.json` est produit en parcourant `pass-cli --help` sur chaque menu (sous-commande `help` ignorée).
+
+**En ligne de commande :**
+
+```bash
+# binaire par défaut : pass-cli sur le PATH
+npm run walk-help
+
+# ou binaire explicite
+PASS_CLI_BIN=/chemin/vers/pass-cli npm run walk-help
+```
+
+**Dans l’UI (serveur de dev) :** bouton **Actualiser le mapping (help)** — relance le parcours si `pass-cli` est disponible, puis recharge l’interface.
+
+Si `pass-cli` est absent, Latch garde le mapping embarqué et l’indique dans l’en-tête.
 
 ## Build
 
@@ -66,10 +50,10 @@ npm run build
 npm run preview
 ```
 
-## macOS keychain (`-25308`)
+## npm
 
-If `pass-cli` was ever run with `sudo`, macOS may refuse keychain access (`User interaction is not allowed`) because `sudo` gives root ownership of the local database. Use only your normal GUI user for `pass-cli`. Latch never runs or suggests `sudo`, and will not offer a `sudo` “fix” for keychain errors.
+Supply-chain : `.npmrc` (`ignore-scripts=true`, `min-release-age=7`). Préférer `npm ci`.
 
-## License
+## macOS trousseau (-25308)
 
-MIT (see repository defaults).
+Ne lancez jamais `pass-cli` avec `sudo`. Latch ne propose pas d’élévation.
