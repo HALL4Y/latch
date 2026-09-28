@@ -7,6 +7,8 @@ import {
   collectFlagEnum,
   composeBashScript,
   composeSimpleCommandLine,
+  composeSimpleListPreview,
+  composeSimpleListPreviewAll,
   nodeIsComposable,
   simplePlaceholderForFlag,
 } from './lib/bashComposer'
@@ -84,6 +86,7 @@ function App() {
   const [runError, setRunError] = useState<string | null>(null)
   const [assistantError, setAssistantError] = useState<string | null>(null)
   const [batchMode, setBatchMode] = useState(false)
+  const [listPreviewPick, setListPreviewPick] = useState<FamilyKey | 'all' | null>(null)
 
   const roleOptions = useMemo(() => {
     const fromMap = collectFlagEnum(mapping, '--role')
@@ -116,10 +119,28 @@ function App() {
     [role, outputFormat, families],
   )
 
-  const simpleLine = useMemo(
+  const availableListPaths = useMemo(
+    () => LIST_FAMILIES.filter((fam) => familyHasList(mapping, fam.listPath)).map((fam) => fam.listPath),
+    [mapping],
+  )
+
+  const composedSimpleLine = useMemo(
     () => composeSimpleCommandLine(mapping, blocks),
     [mapping, blocks],
   )
+
+  const simpleLine = useMemo(() => {
+    if (listPreviewPick === 'all') {
+      return composeSimpleListPreviewAll(mapping, availableListPaths)
+    }
+    if (listPreviewPick) {
+      const fam = LIST_FAMILIES.find((f) => f.key === listPreviewPick)
+      if (fam && familyHasList(mapping, fam.listPath)) {
+        return composeSimpleListPreview(mapping, fam.listPath)
+      }
+    }
+    return composedSimpleLine
+  }, [listPreviewPick, mapping, availableListPaths, composedSimpleLine])
 
   const script = useMemo(
     () => composeBashScript(mapping, blocks, settings),
@@ -147,6 +168,7 @@ function App() {
       }
       setMapping(data.mapping as HelpMappingFile)
       setFamilies(defaultFamilies(data.mapping as HelpMappingFile))
+      setListPreviewPick(null)
     } catch (e) {
       setRunError(e instanceof Error ? e.message : 'Actualisation impossible')
     } finally {
@@ -279,6 +301,33 @@ function App() {
 
         <section className="panel panel-compact">
           <h2>Nœud ouvert</h2>
+          {(availableListPaths.length > 0 || listPreviewPick) && (
+            <div className="list-preview-chips" role="group" aria-label="Aperçu des commandes list (sans exécution)">
+              {LIST_FAMILIES.map((fam) => {
+                if (!familyHasList(mapping, fam.listPath)) return null
+                const label = fam.listPath.join(' ')
+                return (
+                  <button
+                    key={fam.key}
+                    type="button"
+                    className={`chip ${listPreviewPick === fam.key ? 'chip-active' : ''}`}
+                    onClick={() => setListPreviewPick(fam.key)}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+              {availableListPaths.length > 1 && (
+                <button
+                  type="button"
+                  className={`chip ${listPreviewPick === 'all' ? 'chip-active' : ''}`}
+                  onClick={() => setListPreviewPick('all')}
+                >
+                  Tous
+                </button>
+              )}
+            </div>
+          )}
           {simpleLine ? (
             <>
               <pre className="naked-line selectable">{simpleLine}</pre>
