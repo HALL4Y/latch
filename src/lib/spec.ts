@@ -1,18 +1,21 @@
 import enrichments from '../data/command-enrichments.json'
 import snapshotPart1 from '../data/spec-snapshot.part1.json'
 import snapshotPart2 from '../data/spec-snapshot.part2.json'
+import snapshotPart3 from '../data/spec-snapshot.part3.json'
+import snapshotPart4 from '../data/spec-snapshot.part4.json'
 import { applyCommandPolicy } from './commandPolicy'
 import type { CommandDef, PassCliSpec } from './types'
 
+const SNAPSHOT_PARTS = [snapshotPart1, snapshotPart2, snapshotPart3, snapshotPart4] as PassCliSpec[]
+
 function mergeSnapshotParts(): PassCliSpec {
-  const a = snapshotPart1 as PassCliSpec
-  const b = snapshotPart2 as PassCliSpec & { part?: number }
+  const first = SNAPSHOT_PARTS[0]
   return {
-    sourceUrl: a.sourceUrl,
-    rawDocBase: a.rawDocBase,
-    fetchedAt: a.fetchedAt,
-    cliVersionKnown: a.cliVersionKnown,
-    commands: [...a.commands, ...b.commands],
+    sourceUrl: first.sourceUrl,
+    rawDocBase: first.rawDocBase,
+    fetchedAt: first.fetchedAt,
+    cliVersionKnown: first.cliVersionKnown,
+    commands: SNAPSHOT_PARTS.flatMap((p) => p.commands),
   }
 }
 
