@@ -1,2 +1,1 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-// TEMP
+FULL_CONTENT_FROM_NODE
