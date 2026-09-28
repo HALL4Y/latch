@@ -1,0 +1,1 @@
+{"generatedAt":"2026-09-28T16:33:28.854Z","passCliVersion":"Proton Pass CLI 2.4.1 (04de99b)","fixture":false,"source":"help-walker","passCliBin":"/tmp/pass-cli","nodes":{"_root":{"path":[],"description":"A CLI tool for Proton Pass","children":[{"name":"agent","description":"Manage AI agents"}]}}}
