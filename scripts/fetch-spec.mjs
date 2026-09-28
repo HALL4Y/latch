@@ -293,8 +293,23 @@ async function main() {
   const outDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'data')
   mkdirSync(outDir, { recursive: true })
   const outPath = join(outDir, 'spec-snapshot.json')
-  writeFileSync(outPath, JSON.stringify(spec, null, 2))
-  console.log('Wrote', outPath, 'commands:', commands.length)
+  writeFileSync(outPath, JSON.stringify(spec))
+  const meta = {
+    sourceUrl: spec.sourceUrl,
+    rawDocBase: spec.rawDocBase,
+    fetchedAt: spec.fetchedAt,
+    cliVersionKnown: spec.cliVersionKnown,
+  }
+  const partCount = 4
+  const chunk = Math.ceil(spec.commands.length / partCount)
+  for (let i = 0; i < partCount; i++) {
+    const slice = spec.commands.slice(i * chunk, (i + 1) * chunk)
+    writeFileSync(
+      join(outDir, `spec-snapshot.part${i + 1}.json`),
+      JSON.stringify({ ...meta, part: i + 1, commands: slice }),
+    )
+  }
+  console.log('Wrote', outPath, 'and part1–4; commands:', commands.length)
 }
 
 main().catch((e) => {
