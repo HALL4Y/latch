@@ -1,1 +1,1 @@
-/workspace/src/App.tsx
+@/tmp/file1-content.tsx
