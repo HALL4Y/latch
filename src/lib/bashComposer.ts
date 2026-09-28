@@ -24,7 +24,7 @@ export type ComposeSettings = {
 
 function shellQuote(s: string): string {
   if (/^[a-zA-Z0-9._/@+-]+$/.test(s)) return s
-  return `'${s.replace(/'/g, `'\''`)}'`
+  return `'${s.replace(/'/g, `'\\''`)}'`
 }
 
 function quoteValue(v: string): string {
@@ -132,8 +132,8 @@ function buildInvocation(mapping: HelpMappingFile, block: ComposerBlock, setting
     }
   }
 
-  return tokens.join(' \\
-  ')
+  const lineContinue = ' \\\n  '
+  return tokens.join(lineContinue)
 }
 
 export function composeBashScript(mapping: HelpMappingFile, blocks: ComposerBlock[], settings: ComposeSettings): string {
