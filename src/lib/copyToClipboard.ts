@@ -21,6 +21,8 @@ function copyWithExecCommand(text: string): boolean {
   }
 }
 
+const CLIPBOARD_API_TIMEOUT_MS = 400
+
 /** Copie dans le presse-papiers sans attendre d’autre I/O avant l’écriture (préserve le geste utilisateur). */
 export function copyToClipboard(text: string): Promise<boolean> {
   const canUseClipboardApi =
@@ -33,8 +35,27 @@ export function copyToClipboard(text: string): Promise<boolean> {
     return Promise.resolve(copyWithExecCommand(text))
   }
 
-  return navigator.clipboard.writeText(text).then(
-    () => true,
-    () => copyWithExecCommand(text),
-  )
+  return new Promise<boolean>((resolve) => {
+    let settled = false
+    const finish = (ok: boolean) => {
+      if (settled) return
+      settled = true
+      resolve(ok)
+    }
+
+    const timer = window.setTimeout(() => {
+      finish(copyWithExecCommand(text))
+    }, CLIPBOARD_API_TIMEOUT_MS)
+
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        window.clearTimeout(timer)
+        finish(true)
+      },
+      () => {
+        window.clearTimeout(timer)
+        finish(copyWithExecCommand(text))
+      },
+    )
+  })
 }
