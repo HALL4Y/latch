@@ -1,1 +1,1 @@
-@/tmp/file1-content.tsx
+PLACEHOLDER_APP_CONTENT
