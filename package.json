@@ -8,6 +8,7 @@
     "walk-help": "node scripts/walk-help.mjs",
     "fetch-spec": "node scripts/fetch-spec.mjs",
     "build": "tsc -b && vite build",
+    "test": "node --test --experimental-strip-types src/lib/passCliUpdatePolicy.test.ts src/lib/passCliVersion.test.ts",
     "lint": "oxlint",
     "preview": "vite preview"
   },
