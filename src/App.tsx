@@ -257,7 +257,7 @@ function App() {
   return (
     <div className="layout">
       <header className="header">
-        <div>
+        <div className="header-intro">
           <h1>Latch</h1>
           <p className="tagline">
             Composer des scripts <code>pass-cli</code> à partir de l’aide officielle — rien n’est exécuté dans
