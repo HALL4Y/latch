@@ -25,6 +25,14 @@ import {
   loadBundledMapping,
 } from './lib/helpMapping'
 import { LATCH_INSTALL_PATH } from './lib/installPath'
+import {
+  applyExclusiveChoice,
+  exclusivePairsOnNode,
+  EXCLUSIVE_UI_PAIRS,
+  flagsHiddenByExclusiveUi,
+  pickExclusiveFlag,
+  setExclusiveMode,
+} from './lib/flagExclusivity'
 import { scriptContainsSudoWord, userInputUsesSudo } from './lib/sudoPolicy'
 
 const INPUT_REFUSAL = 'Saisie refusée.'
@@ -540,7 +548,9 @@ function BlockEditor({
 }) {
   const node = getNode(mapping, block.path)
   if (!node) return null
-  const fields = node.flags.filter((f) => f.name !== '--help')
+  const hidden = simplePlaceholders ? flagsHiddenByExclusiveUi(node) : new Set<string>()
+  const xorPairs = simplePlaceholders ? exclusivePairsOnNode(node, EXCLUSIVE_UI_PAIRS) : []
+  const fields = node.flags.filter((f) => f.name !== '--help' && !hidden.has(f.name))
 
   function updateField(name: string, value: string) {
     if (value && userInputUsesSudo(value)) {
@@ -551,8 +561,54 @@ function BlockEditor({
     onChange({ ...block.bindings, [name]: value })
   }
 
+  function updateExclusive(pair: [string, string], active: string, value: string) {
+    if (value && userInputUsesSudo(value)) {
+      onSudoReject()
+      return
+    }
+    onClearSudo()
+    onChange(applyExclusiveChoice(block.bindings, pair, active, value))
+  }
+
   return (
     <span className="step-fields">
+      {xorPairs.map((pair) => {
+        const active = pickExclusiveFlag(pair, block)
+        const flag = node.flags.find((f) => f.name === active)
+        if (!flag) return null
+        return (
+          <span key={`${pair[0]}|${pair[1]}`} className="step-field step-field-xor">
+            <select
+              className="input-inline"
+              value={active}
+              onChange={(e) => onChange(setExclusiveMode(block.bindings, pair, e.target.value))}
+              aria-label="Champ exclusif"
+            >
+              <option value={pair[0]}>{pair[0]}</option>
+              <option value={pair[1]}>{pair[1]}</option>
+            </select>
+            {flag.possibleValues ? (
+              <select
+                className="input-inline"
+                value={block.bindings[active] ?? ''}
+                onChange={(e) => updateExclusive(pair, active, e.target.value)}
+              >
+                <option value="">—</option>
+                {flag.possibleValues.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="input-inline"
+                value={block.bindings[active] ?? ''}
+                placeholder={simplePlaceholderForFlag(flag)}
+                onChange={(e) => updateExclusive(pair, active, e.target.value)}
+              />
+            )}
+          </span>
+        )
+      })}
       {fields.map((f) => (
         <span key={f.name} className="step-field">
           <code>{f.name}</code>
