@@ -1,8 +1,12 @@
 import react from '@vitejs/plugin-react'
-import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
+import {
+  buildPassCliVersionPayload,
+  getLatchWorkspacePath,
+  loadMappingFromDisk,
+  runHelpWalk,
+  tryPassCliUpdate,
+} from './scripts/latchDevApi.ts'
 
 const PORT = 4317
 
@@ -10,17 +14,29 @@ function latchLocalApi(): Plugin {
   return {
     name: 'latch-local-api',
     configureServer(server) {
-      server.middlewares.use('/api/pass-cli/version', (_req, res) => {
-        const r = spawnSync('pass-cli', ['--version'], { encoding: 'utf8' })
-        if (r.error || r.status !== 0) {
+      server.middlewares.use('/api/latch/workspace', (_req, res) => {
+        const path = getLatchWorkspacePath()
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ path }))
+      })
+
+      server.middlewares.use('/api/pass-cli/version', async (_req, res) => {
+        const bin = process.env.PASS_CLI_BIN || 'pass-cli'
+        const cwd = process.cwd()
+        let mapping
+        try {
+          mapping = loadMappingFromDisk(cwd)
+        } catch {
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ available: false, error: r.stderr || String(r.error) }))
+          res.end(JSON.stringify({ available: false, mappingDrift: null, upstream: { reliable: false } }))
           return
         }
-        const version = (r.stdout || r.stderr || '').trim()
+        const payload = await buildPassCliVersionPayload(mapping, bin)
+        res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ available: true, version }))
+        res.end(JSON.stringify(payload))
       })
 
       server.middlewares.use('/api/help/refresh', async (req, res) => {
@@ -30,25 +46,33 @@ function latchLocalApi(): Plugin {
           return
         }
         const bin = process.env.PASS_CLI_BIN || 'pass-cli'
-        const walk = spawnSync('node', ['scripts/walk-help.mjs'], {
-          cwd: process.cwd(),
-          encoding: 'utf8',
-          env: { ...process.env, PASS_CLI_BIN: bin },
-        })
-        if (walk.status !== 0) {
+        const cwd = process.cwd()
+
+        let mapping = loadMappingFromDisk(cwd)
+        const update = tryPassCliUpdate(bin, mapping)
+
+        const walk = runHelpWalk(bin, cwd)
+        if (!walk.ok) {
           res.statusCode = 503
           res.setHeader('Content-Type', 'application/json')
-          res.end(
-            JSON.stringify({
-              ok: false,
-              error: walk.stderr || walk.stdout || 'pass-cli absent ou parcours help impossible',
-            }),
-          )
+          res.end(JSON.stringify({ ok: false, error: walk.error, update }))
           return
         }
-        const mapping = JSON.parse(readFileSync(join(process.cwd(), 'src/data/help-mapping.json'), 'utf8'))
+
+        mapping = loadMappingFromDisk(cwd)
+        const version = await buildPassCliVersionPayload(mapping, bin)
+
+        res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: true, mapping, log: walk.stdout }))
+        res.end(
+          JSON.stringify({
+            ok: true,
+            mapping,
+            log: walk.log,
+            update,
+            version,
+          }),
+        )
       })
     },
   }

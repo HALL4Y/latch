@@ -7,7 +7,7 @@ Interface locale (français) pour composer des scripts **bash** `pass-cli` à pa
 ## Sécurité
 
 - Latch n’exécute **jamais** `sudo` et refuse les scripts qui contiennent `sudo`.
-- Dans l’UI et le serveur de dev, les seuls appels `pass-cli` autorisés sont **`--version`** et **`--help`** (parcours du mapping).
+- Dans l’UI et le serveur de dev, les appels `pass-cli` autorisés sont **`--version`**, **`--help`** (parcours du mapping), et éventuellement **`update --yes`** si le mapping documente `--yes` (désactivable avec `LATCH_ALLOW_PASS_CLI_UPDATE=0`).
 - Les scripts générés s’exécutent **dans votre terminal** ; les listes en mode « auto » ne renvoient rien à Latch.
 
 ## Prérequis
