@@ -1,1 +1,1 @@
-FROM_DISK
+/workspace/src/lib/bashComposer.ts
